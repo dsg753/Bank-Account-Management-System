@@ -138,7 +138,20 @@ class BankApp(QtWidgets.QWidget):
             QMessageBox.warning(self, "Error", "No outstanding loan!")
 
     def identify_card_type(self):
-        QMessageBox.information(self, "Feature Coming Soon", "Credit Card Identification will be available soon!")
+        card_number, ok = QtWidgets.QInputDialog.getText(self, "Identify Card Type", "Enter credit card number:")
+        if ok and card_number:
+            if card_number.startswith("4"):
+                card_type = "Visa"
+            elif card_number[:2] in ["51", "52", "53", "54", "55"]:
+                card_type = "MasterCard"
+            elif card_number[:2] in ["34", "37"]:
+                card_type = "American Express"
+            else:
+                card_type = "Other"
+            QMessageBox.information(self, "Card Type", f"Your card type is: {card_type}")
+        else:
+            QMessageBox.warning(self, "Error", "Invalid card number!")
+
 
 
 app = QtWidgets.QApplication([])
