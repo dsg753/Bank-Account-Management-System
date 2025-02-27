@@ -1,5 +1,6 @@
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import QMessageBox
+import math
 
 # Bank System Data Structures
 accounts = {}
@@ -34,6 +35,7 @@ class BankApp(QtWidgets.QWidget):
             ("Apply for Loan", self.apply_for_loan),
             ("Repay Loan", self.repay_loan),
             ("Identify Card Type", self.identify_card_type),
+            ("Loan Calculator", self.loan_calculator),
         ]
 
         for text, func in buttons:
@@ -152,6 +154,30 @@ class BankApp(QtWidgets.QWidget):
         else:
             QMessageBox.warning(self, "Error", "Invalid card number!")
 
+    def loan_calculator(self):
+        name, ok = QtWidgets.QInputDialog.getText(self, "Loan Calculator", "Enter account name:")
+        if ok and name in accounts:
+            loan_amount, ok = QtWidgets.QInputDialog.getDouble(self, "Loan Calculator", "Enter loan amount:", min=1)
+            if ok:
+                interest_rate, ok = QtWidgets.QInputDialog.getDouble(self, "Loan Calculator", "Enter annual interest rate (in %):", min=0.01)
+                if ok:
+                    loan_term, ok = QtWidgets.QInputDialog.getInt(self, "Loan Calculator", "Enter loan term (in years):", min=1)
+                    if ok:
+                        monthly_rate = interest_rate / 100 / 12
+                        num_payments = loan_term * 12
+                        monthly_payment = loan_amount * monthly_rate / (1 - math.pow(1 + monthly_rate, -num_payments))
+                        total_payment = monthly_payment * num_payments
+                        total_interest = total_payment - loan_amount
+                        payoff_date = QtCore.QDate.currentDate().addMonths(num_payments).toString("MMMM yyyy")
+
+                        result = (f"Monthly Payment: ${monthly_payment:.2f}\n"
+                                  f"Total Interest Paid: ${total_interest:.2f}\n"
+                                  f"Total Payment: ${total_payment:.2f}\n"
+                                  f"Payoff Date: {payoff_date}")
+
+                        QMessageBox.information(self, "Loan Calculator Result", result)
+        else:
+            QMessageBox.warning(self, "Error", "Account not found!")
 
 
 app = QtWidgets.QApplication([])
