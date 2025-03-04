@@ -1,20 +1,58 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import QMessageBox
 import math
-
-# Bank System Data Structures
-accounts = {}
-transactions = {}
-loans = {}
+import json
+import os
 
 MAX_LOAN_AMOUNT = 10000
 INTEREST_RATE = 0.03
 
 
 class BankApp(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, mode="demo"):
         super().__init__()
+        self.mode = mode
+        print(f"Running in {self.mode} mode")
+        self.init_data()
         self.initUI()
+
+    def init_data(self):
+        if self.mode == "persistent":
+            self.load_data()
+        else:
+            self.accounts = {}
+            self.transactions = {}
+            self.loans = {}
+
+    def load_data(self):
+        print(f"Current working directory: {os.getcwd()}")
+        if os.path.exists("accounts.json"):
+            with open("accounts.json", "r") as f:
+                self.accounts = json.load(f)
+        else:
+            self.accounts = {}
+
+        if os.path.exists("transactions.json"):
+            with open("transactions.json", "r") as f:
+                self.transactions = json.load(f)
+        else:
+            self.transactions = {}
+
+        if os.path.exists("loans.json"):
+            with open("loans.json", "r") as f:
+                self.loans = json.load(f)
+        else:
+            self.loans = {}
+
+    def save_data(self):
+        print("Saving data...")
+        with open("accounts.json", "w") as f:
+            json.dump(self.accounts, f)
+        with open("transactions.json", "w") as f:
+            json.dump(self.transactions, f)
+        with open("loans.json", "w") as f:
+            json.dump(self.loans, f)
+        print("Data saved successfully")
 
     def initUI(self):
         self.setWindowTitle("Bank Account Management")
@@ -48,33 +86,39 @@ class BankApp(QtWidgets.QWidget):
     def create_account(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Create Account", "Enter account name:")
         if ok and name:
-            if name in accounts:
+            if name in self.accounts:
                 QMessageBox.warning(self, "Error", "Account already exists!")
             else:
-                accounts[name] = 0
-                transactions[name] = []
-                loans[name] = 0
+                self.accounts[name] = 0
+                self.transactions[name] = []
+                self.loans[name] = 0
                 QMessageBox.information(self, "Success", "Account created successfully!")
+                if self.mode == "persistent":
+                    self.save_data()
 
     def deposit(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Deposit", "Enter account name:")
-        if ok and name in accounts:
+        if ok and name in self.accounts:
             amount, ok = QtWidgets.QInputDialog.getDouble(self, "Deposit", "Enter amount:", min=1)
             if ok:
-                accounts[name] += amount
-                transactions[name].append(f"Deposited ${amount}")
+                self.accounts[name] += amount
+                self.transactions[name].append(f"Deposited ${amount}")
                 QMessageBox.information(self, "Success", f"Deposited ${amount} into {name}'s account.")
+                if self.mode == "persistent":
+                    self.save_data()
         else:
             QMessageBox.warning(self, "Error", "Account not found!")
 
     def withdraw(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Withdraw", "Enter account name:")
-        if ok and name in accounts:
+        if ok and name in self.accounts:
             amount, ok = QtWidgets.QInputDialog.getDouble(self, "Withdraw", "Enter amount:", min=1)
-            if ok and accounts[name] >= amount:
-                accounts[name] -= amount
-                transactions[name].append(f"Withdrew ${amount}")
+            if ok and self.accounts[name] >= amount:
+                self.accounts[name] -= amount
+                self.transactions[name].append(f"Withdrew ${amount}")
                 QMessageBox.information(self, "Success", f"Withdrew ${amount} from {name}'s account.")
+                if self.mode == "persistent":
+                    self.save_data()
             else:
                 QMessageBox.warning(self, "Error", "Insufficient funds!")
         else:
@@ -82,23 +126,25 @@ class BankApp(QtWidgets.QWidget):
 
     def check_balance(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Check Balance", "Enter account name:")
-        if ok and name in accounts:
-            QMessageBox.information(self, "Balance", f"{name}'s Balance: ${accounts[name]}")
+        if ok and name in self.accounts:
+            QMessageBox.information(self, "Balance", f"{name}'s Balance: ${self.accounts[name]}")
         else:
             QMessageBox.warning(self, "Error", "Account not found!")
 
     def transfer_funds(self):
         sender, ok = QtWidgets.QInputDialog.getText(self, "Transfer", "Enter sender account name:")
-        if ok and sender in accounts:
+        if ok and sender in self.accounts:
             receiver, ok = QtWidgets.QInputDialog.getText(self, "Transfer", "Enter receiver account name:")
-            if ok and receiver in accounts:
+            if ok and receiver in self.accounts:
                 amount, ok = QtWidgets.QInputDialog.getDouble(self, "Transfer", "Enter amount:", min=1)
-                if ok and accounts[sender] >= amount:
-                    accounts[sender] -= amount
-                    accounts[receiver] += amount
-                    transactions[sender].append(f"Transferred ${amount} to {receiver}")
-                    transactions[receiver].append(f"Received ${amount} from {sender}")
+                if ok and self.accounts[sender] >= amount:
+                    self.accounts[sender] -= amount
+                    self.accounts[receiver] += amount
+                    self.transactions[sender].append(f"Transferred ${amount} to {receiver}")
+                    self.transactions[receiver].append(f"Received ${amount} from {sender}")
                     QMessageBox.information(self, "Success", "Transfer successful!")
+                    if self.mode == "persistent":
+                        self.save_data()
                 else:
                     QMessageBox.warning(self, "Error", "Insufficient funds!")
             else:
@@ -108,32 +154,36 @@ class BankApp(QtWidgets.QWidget):
 
     def view_transaction_history(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Transactions", "Enter account name:")
-        if ok and name in transactions:
-            history = "\n".join(transactions[name]) or "No transactions yet."
+        if ok and name in self.transactions:
+            history = "\n".join(self.transactions[name]) or "No transactions yet."
             QMessageBox.information(self, "Transaction History", history)
         else:
             QMessageBox.warning(self, "Error", "Account not found!")
 
     def apply_for_loan(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Apply for Loan", "Enter account name:")
-        if ok and name in accounts:
+        if ok and name in self.accounts:
             amount, ok = QtWidgets.QInputDialog.getDouble(self, "Loan", "Enter loan amount:", min=1,
                                                           max=MAX_LOAN_AMOUNT)
             if ok:
-                loans[name] += amount * (1 + INTEREST_RATE)
-                accounts[name] += amount
+                self.loans[name] += amount * (1 + INTEREST_RATE)
+                self.accounts[name] += amount
                 QMessageBox.information(self, "Success", f"Loan approved for ${amount}. Interest applied.")
+                if self.mode == "persistent":
+                    self.save_data()
         else:
             QMessageBox.warning(self, "Error", "Account not found!")
 
     def repay_loan(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Repay Loan", "Enter account name:")
-        if ok and name in loans and loans[name] > 0:
+        if ok and name in self.loans and self.loans[name] > 0:
             amount, ok = QtWidgets.QInputDialog.getDouble(self, "Repay Loan", "Enter repayment amount:", min=1)
-            if ok and accounts[name] >= amount:
-                loans[name] -= amount
-                accounts[name] -= amount
+            if ok and self.accounts[name] >= amount:
+                self.loans[name] -= amount
+                self.accounts[name] -= amount
                 QMessageBox.information(self, "Success", "Loan repaid successfully.")
+                if self.mode == "persistent":
+                    self.save_data()
             else:
                 QMessageBox.warning(self, "Error", "Insufficient funds!")
         else:
@@ -156,7 +206,7 @@ class BankApp(QtWidgets.QWidget):
 
     def loan_calculator(self):
         name, ok = QtWidgets.QInputDialog.getText(self, "Loan Calculator", "Enter account name:")
-        if ok and name in accounts:
+        if ok and name in self.accounts:
             loan_amount, ok = QtWidgets.QInputDialog.getDouble(self, "Loan Calculator", "Enter loan amount:", min=1)
             if ok:
                 interest_rate, ok = QtWidgets.QInputDialog.getDouble(self, "Loan Calculator", "Enter annual interest rate (in %):", min=0.01)
@@ -180,7 +230,12 @@ class BankApp(QtWidgets.QWidget):
             QMessageBox.warning(self, "Error", "Account not found!")
 
 
-app = QtWidgets.QApplication([])
-window = BankApp()
-window.show()
-app.exec_()
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+
+    mode, ok = QtWidgets.QInputDialog.getItem(None, "Select Mode", "Choose mode:", ["demo", "persistent"], 0, False)
+    if ok:
+        window = BankApp(mode=mode)
+        window.show()
+        sys.exit(app.exec_())
